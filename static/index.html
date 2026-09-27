@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIVCB Redyon Dashboard</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.x/dist/vuetify.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f4f6f8; }
+    .card-metric { border-bottom: 4px solid #00695c; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <v-app>
+       
+      <!-- PANTALLA DE LOGIN -->
+      <v-main v-if="!isLoggedIn" class="d-flex align-center justify-center bg-grey-lighten-4">
+        <v-card width="400" elevation="4" class="pa-6 rounded-lg">
+          <v-card-title class="text-center text-h5 font-weight-bold mb-4" style="color: #00695c;">SIVCB Redyon</v-card-title>
+          <v-form @submit.prevent="login">
+            <v-text-field v-model="username" label="Usuario" variant="outlined" prepend-inner-icon="mdi-account" required></v-text-field>
+            <v-text-field v-model="password" label="Contraseña" type="password" variant="outlined" prepend-inner-icon="mdi-lock" required></v-text-field>
+            <v-btn type="submit" color="#00695c" block size="large" :loading="loading">Ingresar</v-btn>
+          </v-form>
+        </v-card>
+      </v-main>
+
+      <!-- DASHBOARD -->
+      <template v-else>
+        <v-app-bar color="#00695c" elevation="2" dark>
+          <v-app-bar-title class="font-weight-bold text-white">REDYON — Sistema Inteligente de Validación (SIVCB)</v-app-bar-title>
+          <v-spacer></v-spacer>
+          <v-chip color="white" variant="flat" class="mr-4 text-teal-darken-4 font-weight-bold">
+            <v-icon start icon="mdi-account-circle"></v-icon> Sesión: Administrador
+          </v-chip>
+          <v-btn icon="mdi-logout" color="white" @click="logout"></v-btn>
+        </v-app-bar>
+
+        <v-main class="bg-grey-lighten-3 pa-4">
+          <v-container fluid>
+             
+            <!-- MÉTRICAS -->
+            <v-row class="mb-4">
+              <v-col cols="12" md="3"><v-card class="pa-4 card-metric" elevation="2"><div class="text-overline">PAGOS EN SISTEMA</div><div class="text-h4 font-weight-bold text-teal-darken-3">{{ pagos.length }} Registros</div></v-card></v-col>
+              <v-col cols="12" md="3"><v-card class="pa-4 card-metric" elevation="2"><div class="text-overline">EFICIENCIA DE IA</div><div class="text-h4 font-weight-bold text-blue-darken-2">92.4%</div></v-card></v-col>
+              <v-col cols="12" md="3"><v-card class="pa-4 card-metric" elevation="2"><div class="text-overline">FILTRO ANTIFRAUDE</div><div class="text-h4 font-weight-bold text-red-darken-2">0 Bloqueados</div></v-card></v-col>
+              <v-col cols="12" md="3"><v-card class="pa-4 card-metric" elevation="2"><div class="text-overline">ESTADO DEL SERVIDOR</div><div class="text-h4 font-weight-bold text-orange-darken-3">En Línea</div></v-card></v-col>
+            </v-row>
+
+            <!-- MÓDULO REVISOR -->
+            <v-row class="mb-4">
+              <v-col cols="12">
+                <v-card elevation="3" class="border rounded-lg">
+                  <v-toolbar color="#00897b" density="compact">
+                    <v-icon icon="mdi-magnify-scan" class="ml-4" color="white"></v-icon>
+                    <v-toolbar-title class="text-white text-subtitle-1 font-weight-bold">Módulo de Validación y Edición Manual</v-toolbar-title>
+                  </v-toolbar>
+                   
+                  <v-card-text>
+                    <v-row>
+                      <!-- Visor de Foto Garantizado con HTML Nativo -->
+                      <v-col cols="12" md="5" class="bg-grey-lighten-4 d-flex flex-column align-center justify-center pa-6 rounded border">
+                        <template v-if="imagenSeleccionada">
+                          <!-- La etiqueta <img> estándar jamás falla al renderizar -->
+                          <img :src="imagenSeleccionada" alt="Comprobante" style="max-width: 100%; max-height: 350px; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
+                        </template>
+                        <template v-else>
+                          <v-icon icon="mdi-image-off-outline" size="64" color="grey"></v-icon>
+                          <div class="text-grey-darken-1 mt-2 font-weight-bold">[ SELECCIONA UN PAGO DE LA TABLA INFERIOR ]</div>
+                        </template>
+                      </v-col>
+
+                      <!-- Formulario Editable -->
+                      <v-col cols="12" md="7" class="pa-6">
+                        <div class="text-h6 text-teal-darken-4 font-weight-bold mb-4">Datos Extraídos (Editables)</div>
+                        <v-row>
+                          <v-col cols="6"><v-text-field v-model="detallesRevisados.telefono" label="Teléfono Origen" variant="outlined" density="compact" readonly></v-text-field></v-col>
+                          <v-col cols="6"><v-text-field v-model="detallesRevisados.cliente" label="Cliente" variant="outlined" density="compact" readonly></v-text-field></v-col>
+                          <v-col cols="6"><v-text-field v-model="detallesRevisados.monto" label="Monto Detectado" variant="outlined" density="compact" prefix="$"></v-text-field></v-col>
+                          <v-col cols="6"><v-text-field v-model="detallesRevisados.folio" label="Folio / Clave de Rastreo" variant="outlined" density="compact"></v-text-field></v-col>
+                        </v-row>
+                         
+                        <v-alert type="info" variant="tonal" class="mb-4 text-subtitle-2" density="compact">
+                          Si el OCR falló, corrige el monto o folio manualmente y aprueba el pago.
+                        </v-alert>
+
+                        <div class="d-flex justify-space-between mt-2">
+                          <v-btn color="error" prepend-icon="mdi-close-circle" class="px-6" @click="enviarRevision('RECHAZADO_MANUALMENTE')" :disabled="!pagoActivoId || enviando">
+                            RECHAZAR PAGO
+                          </v-btn>
+                          <v-btn color="success" prepend-icon="mdi-check-circle" class="px-6" @click="enviarRevision('VALIDADO_MANUALMENTE')" :disabled="!pagoActivoId || enviando" :loading="enviando">
+                            ACTUALIZAR Y APROBAR
+                          </v-btn>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <!-- TABLA -->
+            <v-row>
+              <v-col cols="12">
+                <v-card elevation="2">
+                  <v-card-title class="py-3 px-4 bg-white text-h6 text-grey-darken-3 font-weight-bold">
+                    Historial de Transacciones (En Vivo)
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-refresh" variant="text" @click="fetchPagos" :loading="loading"></v-btn>
+                  </v-card-title>
+                  <v-divider></v-divider>
+                   
+                  <v-data-table :headers="headers" :items="pagos" :loading="loading" class="elevation-0" hover density="comfortable">
+                    <template v-slot:item.monto="{ item }">${{ item.monto }}</template>
+                    <template v-slot:item.estado_validacion="{ item }">
+                      <v-chip :color="getColor(item.estado_validacion)" size="small" variant="flat" class="font-weight-bold text-uppercase">
+                        {{ item.estado_validacion.replace(/_/g, ' ') }}
+                      </v-chip>
+                    </template>
+                    <template v-slot:item.acciones="{ item }">
+                      <v-btn size="small" color="#00695c" variant="tonal" @click="cargarAlRevisor(item)">Revisar</v-btn>
+                    </template>
+                  </v-data-table>
+                </v-card>
+              </v-col>
+            </v-row>
+
+          </v-container>
+        </v-main>
+      </template>
+
+    </v-app>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.x/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.x/dist/vuetify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    const { createApp, ref, onMounted, onUnmounted } = Vue;
+    const { createVuetify } = Vuetify;
+    const vuetify = createVuetify();
+
+    createApp({
+      setup() {
+        const isLoggedIn = ref(false);
+        const username = ref('');
+        const password = ref('');
+        const loading = ref(false);
+        const enviando = ref(false);
+         
+        const pagos = ref([]);
+        const pagoActivoId = ref(null);
+        const imagenSeleccionada = ref('');
+        const detallesRevisados = ref({ telefono: '', cliente: '', monto: '', folio: '' });
+        let refreshInterval = null;
+         
+        const headers = [
+          { title: 'ID', key: 'id' },
+          { title: 'Teléfono', key: 'cliente_telefono' },
+          { title: 'Cliente', key: 'cliente_nombre' },
+          { title: 'Folio / Clave', key: 'clave_rastreo' },
+          { title: 'Monto', key: 'monto' },
+          { title: 'Estado', key: 'estado_validacion', align: 'center' },
+          { title: 'Acción', key: 'acciones', sortable: false, align: 'end' }
+        ];
+
+        onMounted(() => {
+          const token = localStorage.getItem('redyon_token');
+          if (token) {
+            isLoggedIn.value = true;
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            fetchPagos();
+            refreshInterval = setInterval(() => fetchPagosSilencioso(), 10000);
+          }
+        });
+
+        onUnmounted(() => {
+          if (refreshInterval) clearInterval(refreshInterval);
+        });
+
+        const login = async () => {
+          loading.value = true;
+          try {
+            const response = await axios.post('/login', { username: username.value, password: password.value });
+            const token = response.data.access_token;
+            localStorage.setItem('redyon_token', token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            isLoggedIn.value = true;
+            await fetchPagos();
+            refreshInterval = setInterval(() => fetchPagosSilencioso(), 10000);
+          } catch (error) { alert('Credenciales incorrectas'); }  
+          finally { loading.value = false; }
+        };
+
+        const logout = () => {
+          localStorage.removeItem('redyon_token');
+          isLoggedIn.value = false;
+          if (refreshInterval) clearInterval(refreshInterval);
+        };
+
+        const fetchPagos = async () => {
+          loading.value = true;
+          await fetchPagosSilencioso();
+          loading.value = false;
+        };
+
+        const fetchPagosSilencioso = async () => {
+          try {
+            const response = await axios.get('/pagos/');
+            pagos.value = response.data.pagos;
+          } catch (error) {  
+            if(error.response?.status === 401) logout();  
+          }
+        };
+
+        const cargarAlRevisor = (item) => {
+          pagoActivoId.value = item.id;
+          
+          // Conectamos la imagen directamente sin intentar cortar la ruta
+          if (item.url_comprobante_imagen) {
+             imagenSeleccionada.value = item.url_comprobante_imagen;
+          } else {
+             imagenSeleccionada.value = '';
+          }
+          
+          detallesRevisados.value = {
+            telefono: item.cliente_telefono || 'No detectado',
+            cliente: item.cliente_nombre || 'Desconocido',
+            monto: item.monto || '0.00',
+            folio: item.clave_rastreo || ''
+          };
+        };
+
+        const enviarRevision = async (nuevoEstado) => {
+          if (!pagoActivoId.value) return;
+          enviando.value = true;
+          try {
+            await axios.put(`/pagos/${pagoActivoId.value}/revision`, {
+              estado_validacion: nuevoEstado,
+              clave_rastreo: detallesRevisados.value.folio,
+              monto: parseFloat(detallesRevisados.value.monto) || 0.0
+            });
+            await fetchPagos();
+            alert("¡Actualizado con éxito!");
+          } catch (error) {
+            console.error(error);
+            alert("Error al actualizar la base de datos.");
+          } finally {
+            enviando.value = false;
+          }
+        };
+
+        const getColor = (estado) => {
+          if (estado.includes('VALIDADO') || estado === 'AUTOMATIZADO') return 'success';
+          if (estado.includes('RECHAZADO') || estado.includes('FRAUDE')) return 'error';
+          return 'warning';
+        };
+
+        return {  
+          isLoggedIn, username, password, loading, enviando, login, logout,  
+          headers, pagos, fetchPagos, getColor, cargarAlRevisor, enviarRevision,
+          imagenSeleccionada, detallesRevisados, pagoActivoId
+        };
+      }
+    }).use(vuetify).mount('#app');
+  </script>
+</body>
+</html>
